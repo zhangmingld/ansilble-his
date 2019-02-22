@@ -1,0 +1,56 @@
+1、将ansible中列表的u去掉，使用“to_json”filter(即转换python中的unicode)
+- hosts: masters
+  sudo: yes
+  tasks:
+    - name: set master extra vars
+      set_fact:
+         kube_apiserver_extra_args:
+            - --logtostderr=false
+            - --allow-privileged=true
+            - --feature-gates=PersistentLocalVolumes=true,PodPriority=true
+            - --runtime-config=scheduling.k8s.io/v1alpha1=true
+            - --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP
+         kube_controller_manager_extra_args:
+            - --logtostderr=false
+            - --horizontal-pod-autoscaler-use-rest-clients=false
+            - --node-monitor-grace-period=1m
+            - --leader-elect-retry-period=5s
+         kube_scheduler_extra_args:
+            - --logtostderr=false
+            - --feature-gates=PersistentLocalVolumes=true,PodPriority=true
+            - --leader-elect-retry-period=5s
+
+    - name: insert extra_args to hostvars
+      lineinfile:
+        dest: host_vars/{{ inventory_hostname }}
+        state: present
+        line: '{{ item }}'
+      delegate_to: localhost
+      with_items:
+           - "kube_apiserver_extra_args: {{ kube_apiserver_extra_args |to_json }}"
+           - "kube_controller_manager_extra_args: {{ kube_controller_manager_extra_args|to_json }}"
+           - "kube_scheduler_extra_args: {{ kube_scheduler_extra_args|to_json }}"
+
+
+2、
+- set_fact:
+
+    version: |-
+
+      {%- if lasteversion is defined -%}
+
+      {{ lasteversion }}
+
+      {%- else -%}
+
+      {{ from_version }}
+
+      {%- endif -%}
+
+  when: not original_version_file_stat.stat.exists
+
+
+
+3、include导入
+静态导入，仅仅将子任务加入
+动态导入，在导入时计算当前任务的状况后在导入，例如上层变量所在任务被忽略，则动态导入时，子任务也被忽略，相反，静态导入则会报错，因为上层变量因为任务忽略导致子任务采用该变量时，该变量未定义
