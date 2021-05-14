@@ -1,0 +1,327 @@
+kubectl create namespace zmtest
+kubectl create secret docker-registry mytest --docker-server=armdocker.rnd.test.se --docker-username=eupgbld --docker-password=AKCp5bB3apQgYPWpRh5TeWyZBwJZfEwo8vE9x5YYATMEvMggcYyCcPmMdw2MBE3Tif4yik41e --docker-email=miao.a.yu@test.com --namespace=zmtest
+kubectl create secret generic pg-secret --from-literal=custom-user=rachel --from-literal=custom-pwd=rachel_pwd --from-literal=super-pwd=Postgres1# --from-literal=metrics-pwd=exporter --from-literal=replica-user=replica --from-literal=replica-pwd=replica -n zmtest
+
+--set metrics.queryMetrics.pg_stat_user_tables.query="SELECT current_database() datname\, schemaname\, relname\, seq_scan FROM pg_stat_user_tables"
+--set metrics.queryMetrics.pg_stat_user_tables.metrics[0].datname.usage="LABEL" --set metrics.queryMetrics.pg_stat_user_tables.metrics[0].datname.description="Name of current database"
+--set metrics.queryMetrics.pg_stat_user_tables.metrics[0].schemaname.usage="LABEL" --set metrics.queryMetrics.pg_stat_user_tables.metrics[0].schemaname.description="Name of the schema that this table is in"
+--set metrics.queryMetrics.pg_stat_user_tables.metrics[0].relname.usage="LABEL" --set metrics.queryMetrics.pg_stat_user_tables.metrics[0].relname.description="Name of this table"
+--set metrics.queryMetrics.pg_stat_user_tables.metrics[0].seq_scan.usage="COUNTER" --set metrics.queryMetrics.pg_stat_user_tables.metrics[0].seq_scan.description="Number of sequential scans initiated on this table"
+
+
+--set tolerations[0].key="node.kubernetes.io/not-ready" --set tolerations[0].operator="Exists" --set tolerations[0].effect="NoExecute" --set tolerations[0].tolerationSeconds=20
+
+--set tolerations.postgres[0].key="node.kubernetes.io/not-ready" --set tolerations.postgres[0].operator="Exists" --set tolerations.postgres[0].effect="NoExecute" --set tolerations.postgres[0].tolerationSeconds=20 --set tolerations.brAgent[0].key="node.kubernetes.io/not-ready" --set tolerations.brAgent[0].operator="Exists" --set tolerations.brAgent[0].effect="NoExecute" --set tolerations.brAgent[0].tolerationSeconds=30 --set tolerations.cleanuphook[0].key="node.kubernetes.io/not-ready" --set tolerations.cleanuphook[0].operator="Exists" --set tolerations.cleanuphook[0].effect="NoExecute" --set tolerations.cleanuphook[0].tolerationSeconds=20
+
+--set tolerations.postgres[1].key="node.kubernetes.io/unreachable" --set tolerations.postgres[1].operator="Exists" --set tolerations.postgres[1].effect="NoExecute" --set tolerations.postgres[1].tolerationSeconds=20 --set tolerations.brAgent[1].key="node.kubernetes.io/unreachable" --set tolerations.brAgent[1].operator="Exists" --set tolerations.brAgent[1].effect="NoExecute" --set tolerations.brAgent[1].tolerationSeconds=30 --set tolerations.cleanuphook[1].key="node.kubernetes.io/unreachable" --set tolerations.cleanuphook[1].operator="Exists" --set tolerations.cleanuphook[1].effect="NoExecute" --set tolerations.cleanuphook[1].tolerationSeconds=20
+
+--set tolerations.postgres[0].key="ssd" --set tolerations.postgres[0].operator="Exists" --set tolerations.postgres[0].effect="NoExecute" --set tolerations.postgres[0].tolerationSeconds=20 --set tolerations.brAgent[0].key="ssd" --set tolerations.brAgent[0].operator="Exists" --set tolerations.brAgent[0].effect="NoExecute" --set tolerations.brAgent[0].tolerationSeconds=30 --set tolerations.cleanuphook[0].key="ssd" --set tolerations.cleanuphook[0].operator="Exists" --set tolerations.cleanuphook[0].effect="NoExecute" --set tolerations.cleanuphook[0].tolerationSeconds=20
+
+
+with nodeselector
+ helm install --debug --name=perfor-zm2 eric-data-document-database-pg-2.1.0-8.tgz  --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=2 --set highAvailability.synchronousModeEnabled=true --set nodeSelector.kubernetes\\.io/hostname=node-10-210-53-179 --set resources.postgres.requests.memory="2560Mi" --set resources.postgres.requests.cpu="1" --set resources.metrics.requests.memory="256Mi" --set resources.metrics.requests.cpu="200m"
+ helm install --debug --name=perfor-zm2 eric-data-document-database-pg-1.2.0+50.tgz  --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=1 --set highAvailability.synchronousModeEnabled=false --set nodeSelector.kubernetes\\.io/hostname=node-10-210-53-179 --set resources.requests.memory="2560Mi" --set resources.requests.cpu="1" --set resources.limits.memory="2560Mi" --set resources.limits.cpu="1" --set metrics.resources.requests.memory="256Mi" --set metrics.resources.requests.cpu="200m" --set metrics.resources.limits.memory="256Mi" --set metrics.resources.limits.cpu="200m"
+ 
+ 
+ --set resources.postgres.requests.memory="256Mi" --set resources.postgres.requests.cpu="100m" --set resources.postgres.requests.hugepages-2Mi="0Mi" --set resources.postgres.limits.memory="256Mi" --set resources.postgres.limits.cpu="100m" --set resources.postgres.limits.hugepages-2Mi="0Mi" 
+ 
+hl3 install document-test eric-data-document-database-pg-5.5.0-36.tgz --set global.registry.pullSecret=mytest --set credentials.kubernetesSecretName=pg-secret --set brAgent.enabled=true --set global.security.tls.enabled=true --set brAgent.backupTypeList[0]=configuration-data --set brAgent.logLevel="debug" --set postgresDatabase=cmdb,brAgent.backupDataModelConfig=eric-data-document-database-pg-brm-backup-new --set brAgent.logicalDBBackupEnable=true --set nodeSelector.postgres.kubernetes\\.io/hostname="node-10-63-142-99" --set resources.postgres.limits.hugepages-2Mi="160Mi" --set resources.postgres.limits.hugepages-1Gi="1Gi" --set postgresConfig.huge_pages="on"
+ 
+ 
+without nodeselector
+ helm install --debug --name=perfor-zm2 eric-data-document-database-pg-2.1.0-8.tgz  --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=2 --set highAvailability.synchronousModeEnabled=true --set resources.postgres.requests.memory="2560Mi" --set resources.postgres.requests.cpu="1" --set resources.metrics.requests.memory="256Mi" --set resources.metrics.requests.cpu="200m"
+ helm install --debug --name=perfor-zm2 eric-data-document-database-pg-1.2.0+50.tgz  --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=1 --set highAvailability.synchronousModeEnabled=false --set resources.requests.memory="2560Mi" --set resources.requests.cpu="1" --set resources.limits.memory="2560Mi" --set resources.limits.cpu="1" --set metrics.resources.requests.memory="256Mi" --set metrics.resources.requests.cpu="200m" --set metrics.resources.limits.memory="256Mi" --set metrics.resources.limits.cpu="200m"
+
+
+helm install --debug --name=perfor-zm2 eric-data-document-database-pg-2.0.0+109.tgz  --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=2 --set highAvailability.synchronousModeEnabled=true --set resources.postgres.requests.memory="2560Mi" --set resources.postgres.requests.cpu="1" --set resources.metrics.requests.memory="256Mi" --set resources.metrics.requests.cpu="200m"
+
+helm install --name=bktest helm-target/eric-data-document-database-pg/eric-data-document-database-pg --namespace=bktest --set global.registry.pullSecret=mytest  --set brAgent.enabled=true --set brAgent.backupTypeList[0]=configuration-data --set brAgent.logLevel="debug" --set postgresDatabase=cmdb,brAgent.backupDataModelConfig=eric-data-document-database-pg-brm-backup-new --set credentials.kubernetesSecretName=pg-secret
+
+ helm template eric-sec-sip-tls -x templates/server-certificate-crd.yaml --set manuallyDeployCrd=true | kubectl apply -f -
+ 
+ helm install eric-sec-key-management.tgz --namespace zmtest2 --set withSipTls=true
+ helm install eric-sec-sip-tls-0.0.2-181115122617863.tgz --namespace爖mtest2
+ 
+ eric-data-document-database-pg.zmtest.svc.cluster.local 
+ 
+postgresConfig:
+  parameters:
+    ssl: on
+    ssl_ca_file: /tmp/certificates/ca.cert/cacertbundle.pem
+    ssl_cert_file: /tmp/certificates/srvcert.pem
+    ssl_key_file: /tmp/certificates/srvprivkey.pem
+check certificate expired
+openssl x509 -in srvcert.pem -noout -dates
+
+psql "host=eric-data-document-database-pg.zmtest.svc.cluster.local user=postgres sslmode=verify-ca sslrootcert=/tmp/ca-certificates/cacertbundle.pem port=5439"
+
+helm install --debug eric-data-document-database-pg-2.2.0-7.tgz --name=perfor-zm2 --namespace=doucumentdbtest --set imageCredentials.registry.pullSecret=mytest --wait --timeout 20000 --set highAvailability.replicaCount=2 --set highAvailability.synchronousModeEnabled=true --set resources.postgres.requests.memory="2560Mi" --set resources.postgres.requests.cpu="1" --set resources.metrics.requests.memory="256Mi" --set resources.metrics.requests.cpu="200m" --set sip_tls.enable=true
+
+when upgrade , thinking about the pod uses the old pvc which contains the old postgres config , if this old config can impact the upgrade pod
+
+kubectl create secret docker-registry mytest --docker-server=armdocker.rnd.test.se --docker-username=eupgbld --docker-password=AKCp5bB3apQgYPWpRh5TeWyZBwJZfEwo8vE9x5YYATMEvMggcYyCcPmMdw2MBE3Tif4yik41e --docker-email=miao.a.yu@test.com --namespace=documentdbtest
+kubectl create secret generic pg-secret --from-literal=custom-user=rachel --from-literal=custom-pwd=rachel_pwd --from-literal=super-pwd=Postgres1# --from-literal=metrics-pwd=exporter --from-literal=replica-user=replica --from-literal=replica-pwd=replica -n documentdbtest
+
+pg_dump "sslmode=verify-ca sslrootcert=/tmp/ca-certificates/cacertbundle.pem" -h eric-data-document-database-pg -U postgres -d postgres -p 5432 -Fp -f bk_1
+
+helm install eric-data-document-database-pg-3.2.0-3.tgz --name=document-test --namespace=zmtest  --set imageCredentials.registry.pullSecret=mytest --set brAgent.enabled=true --set credentials.kubernetesSecretName=pg-secret --set security.postgres.tls.enable=true
+
+helm install --name=document-test --namespace=zmtest --set global.registry.pullSecret=mytest --set credentials.kubernetesSecretName=pg-secret --set brAgent.enabled=true --set global.security.tls.enabled=true --set brAgent.backupTypeList[0]=configuration-data --set brAgent.logLevel="debug" --set postgresDatabase=cmdb,brAgent.backupDataModelConfig=eric-data-document-database-pg-brm-backup-new --set brAgent.logicalDBBackupEnable=true 
+
+--set resources.postgres.limits.hugepages-2Mi="0Mi" 
+--set nodeSelector.postgres.kubernetes\\.io/hostname="node-10-63-142-99"
+
+Bro with mtls
+helm install eric-ctrl-bro-2.6.0+5.tgz --name=zmtest-bro --namespace=zmtest --set security.tls.broToAgent.enabled=true --set service.endpoints.broToAgent.tls.enforced=required --set service.endpoints.broToAgent.tls.verifyClientCertificate=required
+
+
+curl -X POST http://127.0.0.1:8083/document-database-pg/v1/backup -d configuration-data
+
+curl -X POST http://127.0.0.1:8083/document-database-pg/v1/restore -d "/var/data/pgdump.tar.gz:configuration-data"
+
+ helm template eric-data-document-database-pg/ --set brAgent.enabled=true --set credentials.kubernetesSecretName=mysecret > test.yaml
+
+git rev-parse usage
+https://blog.csdn.net/ouyang_peng/article/details/73162532
+
+shwo .git dir
+$ git rev-parse --git-dir
+/path/to/my/workspace/demo/.git12
+
+show workarea location
+$ git rev-parse --show-toplevel
+/path/to/my/workspace/demo12
+
+show current dir related to the workarea 
+$ git rev-parse --show-prefix
+a/b/c12
+
+show current deeppath related to the workarea
+$ git rev-parse --show-cdup
+../../..
+
+
+
+helm3 install siptls eric-sec-sip-tls-1.9.0+26.tgz --namespace=zmtest --set etcd.hostname=""
+
+helm3 install keymgmt eric-sec-key-management-2.8.0+31.tgz  --namespace=zmtest --set persistence.type=pvc
+ 
+用sed命令在行首或行尾添加字符的命令有以下几种：
+假设处理的文本为test.file
+
+在每行的头添加字符，比如"HEAD"，命令如下：
+sed 's/^/HEAD&/g' test.file
+在每行的行尾添加字符，比如“TAIL”，命令如下：
+sed 's/$/&TAIL/g' test.file
+运行结果如下图：
+
+几点说明：
+1."^"代表行首，"$"代表行尾
+2.'s/$/&TAIL/g'中的字符g代表每行出现的字符全部替换，如果想在特定字符处添加，g就有用了，否则只会替换每行第一个，而不继续往后找了
+
+
+python
+__file__ 本文件当前的位置
+
+__package__ 包所在路径
+
+openssl ciphers -s -v 'HIGH+ECDHE:HIGH+AES256!DHE!SHA'
+
+
+1、security traning
+2、security code review machinenism
+  time period
+3、体系化的问题总结、分析、收集（testing、va/ra、code）
+  conflunce 上的security GPR
+  Erricson security guideline
+
+一个月内，下个sprint
+
+EST ( test community upstream )
+
+
+VA Report
+
+VA exemption
+https://test.sharepoint.com/sites/Security/Vulnerabilities
+
+Ming Zhang E 9:08 AM: 
+ben，VA扫描里的apikey是哪个呀？
+Ben Gao 3:36 PM: 
+hi
+Ben Gao 3:36 PM: 
+上周在培训没看到消息
+Ben Gao 3:38 PM: 
+armdocker.rnd.test.se          Central Proxy     https://arm.epk.test.se/artifactory  AKCp5bB3apQgYPWpRh5TeWyZBwJZfEwo8vE9x5YYATMEvMggcYyCcPmMdw2MBE3Tif4yik41e 
+Ben Gao 3:39 PM: 
+这个
+Ming Zhang E 3:57 PM: 
+好的好的
+Ming Zhang E 3:57 PM: 
+上周培训很high呀
+Ben Gao 3:57 PM: 
+好
+Ben Gao 3:58 PM: 
+https://armxray.seli.gic.test.se
+
+OWSAP
+https://github.com/Grunny/zap-cli
+
+Tenable
+https://confluence.lmera.test.se/pages/viewpage.action?spaceKey=GECT&title=Tenable
+
+backuprestore
+[?1/?15/?2020 1:32 PM]  Quan Qin:  
+一般我用的命令是pgbench -i -h eric-data-document-database-pg -U cm -d cmdb -s 100
+这里的100 应该对应的是一千万条数据
+ 
+[?1/?15/?2020 1:32 PM]  
+好的
+ 
+[?1/?15/?2020 1:32 PM]  
+大概要多久restore好呀？
+ 
+[?1/?15/?2020 1:34 PM]  Quan Qin:  
+加了notify 好像有两分钟左右
+最好看下test report :D
+ 
+[?1/?15/?2020 1:34 PM]  
+哈哈 好的
+ 
+[?1/?15/?2020 1:34 PM]  Quan Qin:  
+report里面有对应的多少size的数据 restore的time
+ 
+[?1/?15/?2020 1:35 PM]  
+ok
+ 
+[?1/?15/?2020 1:35 PM]  
+还有一个问题哈
+ 
+[?1/?15/?2020 1:35 PM]  
+bro出发咱们做backup和restore的命令能发我一个不？
+ 
+[?1/?15/?2020 1:35 PM]  Quan Qin:  
+好的
+#####create one backup 
+$ curl -i -X POST \
+   -H "Content-Type:application/json" \
+   -d \
+'{
+  "action": "CREATE_BACKUP",
+  "payload": {
+    "backupName": "BackupPG101"
+  }
+}' \
+ 'http://localhost:7001/v1/backup-manager/configuration-data/action' 
+ 
+[?1/?15/?2020 1:37 PM]  Quan Qin:  
+#####restore one backup
+curl -i -X POST \
+   -H "Content-Type:application/json" \
+   -d \
+'{
+  "action": "RESTORE",
+  "payload": {
+    "backupName": "BackupPG101"
+  }
+}' \
+ 'http://localhost:7001/v1/backup-manager/configuration-data/action' 
+restore里面的backupname要跟之前backup的name保持一致
+然后那个configuration-data这个对应的是backupType
+根据你自己需要配进去的
+ 
+[?1/?15/?2020 1:37 PM]  
+这个BackupPG101怎么来的呀？
+ 
+[?1/?15/?2020 1:37 PM]  Quan Qin:  
+我自己随便命名的(:|
+就是你在backup request的时候定下来的
+ 
+[?1/?15/?2020 1:38 PM]  
+那bro怎么知道是给我们做的backup而不是给其他service的呢？
+ 
+[?1/?15/?2020 1:38 PM]  Quan Qin:  
+我们不是一开始就register了吗
+register的时候带了一个scope，其实就是backupType
+
+
+步骤 1. ClientHello – 客户端发送所支持的 SSL/TLS 最高协议版本号和所支持的加密算法集合及压缩方法集合等信息给服务器端。
+步骤 2. ServerHello – 服务器端收到客户端信息后，选定双方都能够支持的 SSL/TLS 协议版本和加密方法及压缩方法，返回给客户端。
+（可选）步骤 3. SendCertificate – 服务器端发送服务端证书给客户端。
+（可选）步骤 4. RequestCertificate – 如果选择双向验证，服务器端向客户端请求客户端证书。
+步骤 5. ServerHelloDone – 服务器端通知客户端初始协商结束。
+（可选）步骤 6. ResponseCertificate – 如果选择双向验证，客户端向服务器端发送客户端证书。
+步骤 7. ClientKeyExchange – 客户端使用服务器端的公钥，对客户端公钥和密钥种子进行加密，再发送给服务器端。
+（可选）步骤 8. CertificateVerify – 如果选择双向验证，客户端用本地私钥生成数字签名，并发送给服务器端，让其通过收到的客户端公钥进行身份验证。
+步骤 9. CreateSecretKey – 通讯双方基于密钥种子等信息生成通讯密钥。
+步骤 10. ChangeCipherSpec – 客户端通知服务器端已将通讯方式切换到加密模式。
+步骤 11. Finished – 客户端做好加密通讯的准备。
+步骤 12. ChangeCipherSpec – 服务器端通知客户端已将通讯方式切换到加密模式。
+步骤 13. Finished – 服务器做好加密通讯的准备。
+步骤 14. Encrypted/DecryptedData – 双方使用客户端密钥，通过对称加密算法对通讯内容进行加密。
+步骤 15. ClosedConnection – 通讯结束后，任何一方发出断开 SSL 连接的消息。
+
+
+REQ000008778268
+
+https://test.sharepoint.com/sites/Security/Lists/Exemption%20request/DispForm.aspx?ID=153&pa=1&e=jurWbV
+
+Security master
+1. eridoc： 
+https://eridoc.internal.test.com/eridoc/?docbase=eridoca&locateId=0b004cffc48ea38a
+
+get xray version
+curl -vv -u "enhzgnm:1qaz)wsx"  -X GET -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/system/version
+ignore false postive
+echo "{\"componentID\": \"docker://proj-document-database-pg/data/eric-data-document-database-pg:5.4.0-62\"}" > scanArtifact.json
+curl -vv -u "enhzgnm:1qaz)wsx"  -X POST -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/scanArtifact -T scanArtifact.json   
+
+echo "{\"componentID\": \"docker://proj-document-database-pg/data/eric-data-document-database-bra:5.4.0-62\"}" > scanArtifact.json
+curl -vv -u "enhzgnm:1qaz)wsx"  -X POST -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/scanArtifact -T scanArtifact.json 
+
+echo "{\"componentID\": \"docker://proj-document-database-pg/data/eric-data-document-database-brm:5.4.0-62\"}" > scanArtifact.json
+curl -vv -u "enhzgnm:1qaz)wsx"  -X POST -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/scanArtifact -T scanArtifact.json 
+
+echo "{\"componentID\": \"docker://proj-document-database-pg/data/eric-data-document-database-kube-client:5.4.0-62\"}" > scanArtifact.json
+curl -vv -u "enhzgnm:1qaz)wsx"  -X POST -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/scanArtifact -T scanArtifact.json 
+
+echo "{\"componentID\": \"docker://proj-document-database-pg/data/eric-data-document-database-metrics:5.4.0-62\"}" > scanArtifact.json
+curl -vv -u "enhzgnm:1qaz)wsx"  -X POST -H "Content-Type: application/json" https://armxray.seli.gic.test.se/api/v1/scanArtifact -T scanArtifact.json 
+anchor version
+https://confluence.lmera.test.se/pages/viewpage.action?spaceKey=ACD&title=ADP+Anchore+Scan+for+Generic+and+Reusable+Services
+
+tenable
+
+DDB PG:
+
+repo: https://arm.sero.gic.test.se/artifactory/webapp/#/admin/security/permissions/proj-eric-data-document-database-pg-va-generic-perm/edit
+
+owner: Fan Liu, Ning Liu
+
+users: adpauto and ezmohab (deploy)
+
+Http access URL: https://arm.sero.gic.test.se/artifactory/proj-eric-data-document-database-pg-va-generic-local/
+
+version: https://wcdma-confluence.rnd.ki.sw.test.se/display/SANENG/How+to+get+support  support page
+
+postgresql function
+create or replace function checkListen() returns
+void AS $$
+declare loopnum int;
+ begin
+ loopnum :=30;
+  while loopnum > 0 loop
+   LISTEN "backup_and_restore_events";
+   loopnum = loopnum-1;
+   perform pg_sleep(1);
+  end loop;
+ end;
+$$
+LANGUAGE plpgsql;
+
+
+create or replace function checkListen() returns void AS $$ declare loopnum int; begin loopnum :=30; while loopnum > 0 loop LISTEN "backup_and_restore_events";  loopnum = loopnum-1;  perform pg_sleep(1); end loop; end; $$ LANGUAGE plpgsql;
+
+
+
+affinity： hook is not necessary as there is only one pod , and it is not meaing for an temp pod
